@@ -7,10 +7,8 @@ dotenv.config();
 
 const at = process.env.at;
 
-app.get("/categories/:categoryname/products", async (req, res) => {
-    const { companyname, top, minPrice, maxPrice } = req.query;
-    const { categoryname } = req.params;
-    const apiUrl = `http://20.244.56.144/test/companies/${companyname}/categories/${categoryname}/products?top=${top}&minPrice=${minPrice}&maxPrice=${maxPrice}`;
+async function bufferFunction(company, categoryname, top, minPrice, maxPrice) {
+    const apiUrl = `http://20.244.56.144/test/companies/${company}/categories/${categoryname}/products?top=${top}&minPrice=${minPrice}&maxPrice=${maxPrice}`;
 
     try {
         const response = await fetch(apiUrl, {
@@ -24,10 +22,45 @@ app.get("/categories/:categoryname/products", async (req, res) => {
         }
 
         const responseData = await response.json();
-        res.status(200).json(responseData);
+        const datas = [...responseData];
+        const datas_id = datas.map((data, buffer) => {
+            return { ...data, id: buffer + 1 };
+        });
+
+        return datas_id;
     } catch (error) {
         console.error('Error fetching products:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        throw new Error('Internal server error');
+    }
+}
+
+app.get("/categories/:categoryname/products", async (req, res) => {
+    const { company, top, minPrice, maxPrice } = req.query;
+    const { categoryname } = req.params;
+
+    try {
+        const datas_id = await bufferFunction(company, categoryname, top, minPrice, maxPrice);
+        res.status(200).json(datas_id);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.get("/categories/:categoryname/products/:productid", async (req, res) => {
+    const { productid } = req.params;
+    const productId = parseInt(productid);
+
+    try {
+        const datas_id = await bufferFunction(company, categoryname, top, minPrice, maxPrice);
+        const product = datas_id.find(product => product.id === productId);
+
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
+        res.json(product);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 });
 
